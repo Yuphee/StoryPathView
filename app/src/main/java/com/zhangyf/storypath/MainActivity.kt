@@ -17,8 +17,8 @@ class MainActivity : AppCompatActivity() {
         cl_root.setBackgroundResource(R.mipmap.background)
         var storyPathView = StoryPathView(this)
         storyPathView.setMaxColumn(3)
-        for (i in 0..7) {
-            var bean: StoryBean = if (i > 5) {
+        for (i in 0..17) {
+            var bean: StoryBean = if (i > 10) {
                 StoryBean("http://onz34txkn.bkt.clouddn.com/1804091636236975.png", 0, 0, 0, null)
             } else {
                 StoryBean("http://onz34txkn.bkt.clouddn.com/1804091636236975.png", 1, 0, 0, null)

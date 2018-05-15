@@ -136,6 +136,16 @@ class StoryPathView : View {
         }
     }
 
+    private fun initYData() {
+        for (i in dataList.indices) {
+            val pointF = dataList[i]
+
+            pointF.y = ((OFFSET_Y / 2 + CIRCLE_RADIUS + DELTA_Y * i).toInt())
+
+            dataList[i] = pointF
+        }
+    }
+
     private fun drawView(canvas: Canvas) {
         mPath!!.reset()
 
@@ -287,11 +297,28 @@ class StoryPathView : View {
     }
 
     /**
-     * 设置数据源
+     * 设置数据源设置默认线性排序
      */
     open fun setData(list: MutableList<StoryBean>) {
         dataList = list
         initData()
+        invalidate()
+    }
+
+    /**
+     * 设置数据源更改X位置(1..MAX_COLUMN_COUNT)
+     */
+    open fun setDataWithCustomX(list: MutableList<StoryBean>) {
+        dataList = list
+        initYData()
+        invalidate()
+    }
+
+    /**
+     * 设置数据源更改XY位置
+     */
+    open fun setDataWithCustomXY(list: MutableList<StoryBean>) {
+        dataList = list
         invalidate()
     }
 
