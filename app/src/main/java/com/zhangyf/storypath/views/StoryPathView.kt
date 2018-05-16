@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.*
 import android.graphics.drawable.BitmapDrawable
 import android.media.ThumbnailUtils
+import android.support.v4.util.LruCache
 import android.text.TextPaint
 import android.util.AttributeSet
 import android.view.MotionEvent
@@ -67,6 +68,8 @@ class StoryPathView : View {
 
     var listener:((Boolean) -> Unit)? = null
 
+    private var mMemoryCache: LruCache<String, Bitmap>? = null
+
     constructor(context: Context) : super(context) {
         init(context)
     }
@@ -96,6 +99,15 @@ class StoryPathView : View {
         mTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG or Paint.LINEAR_TEXT_FLAG)
         mTextPaint!!.color = Color.WHITE
 
+        val maxMemory = (Runtime.getRuntime().maxMemory() / 1024).toInt()
+
+        val cacheSize = maxMemory / 4
+
+        mMemoryCache = object : LruCache<String, Bitmap>(cacheSize) {
+            override fun sizeOf(key: String?, bitmap: Bitmap?): Int {
+                return bitmap!!.byteCount / 1024
+            }
+        }
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -179,13 +191,13 @@ class StoryPathView : View {
                 val bitmapPaint = Paint()
                 bitmapPaint.isAntiAlias = true
                 bitmapPaint.isFilterBitmap = true
-                if (dataList[index].bitmap == null || dataList[index].bitmap?.get() == null || dataList[index].bitmap?.get()?.isRecycled!!) {
+                if (getBitmapFromMemCache(dataList[i].cover) == null) {
                     Glide.with(mContext!!)
                             .asBitmap()
                             .load(dataList[index].cover)
                             .into(object : SimpleTarget<Bitmap>() {
                                 override fun onResourceReady(bitmap: Bitmap, transition: Transition<in Bitmap>?) {
-                                    dataList[index].bitmap = WeakReference(bitmap)
+                                    addBitmapToMemoryCache(dataList[i].cover,bitmap)
                                     invalidate()
                                 }
                             })
@@ -196,9 +208,10 @@ class StoryPathView : View {
                 // 计算y坐标
                 val y = dataList[index].y.toFloat()
 
-                if (dataList[index].bitmap != null && dataList[index].bitmap?.get() != null && !dataList[index].bitmap?.get()?.isRecycled!!) {
-                    var dimensionX = Math.min(dataList[index].bitmap?.get()?.width!!, dataList[index].bitmap?.get()?.height!!)
-                    var bitmap = ThumbnailUtils.extractThumbnail(dataList[index].bitmap?.get(), dimensionX, dimensionX)
+                val cache = getBitmapFromMemCache(dataList[i].cover)
+                if (cache != null) {
+                    var dimensionX = Math.min(cache.width!!, cache.height!!)
+                    var bitmap = ThumbnailUtils.extractThumbnail(cache, dimensionX, dimensionX)
 
                     canvas.save()
                     canvas.translate(x - CIRCLE_RADIUS, y - CIRCLE_RADIUS)
@@ -397,6 +410,16 @@ class StoryPathView : View {
      */
     open fun setOnPointClickListener(listener: (Boolean)->Unit) {
         this.listener = listener
+    }
+
+    open fun addBitmapToMemoryCache(key: String, bitmap: Bitmap) {
+        if (getBitmapFromMemCache(key) == null) {
+            mMemoryCache?.put(key, bitmap)
+        }
+    }
+
+    open fun getBitmapFromMemCache(key: String): Bitmap? {
+        return mMemoryCache?.get(key)
     }
 
 }

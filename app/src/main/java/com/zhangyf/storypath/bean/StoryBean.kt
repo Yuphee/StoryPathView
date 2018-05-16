@@ -12,6 +12,5 @@ import java.lang.ref.WeakReference
 data class StoryBean(val cover: String,
                      val lockStatus: Int,
                      var x: Int,
-                     var y: Int,
-                     var bitmap: WeakReference<Bitmap>?)
+                     var y: Int)
 

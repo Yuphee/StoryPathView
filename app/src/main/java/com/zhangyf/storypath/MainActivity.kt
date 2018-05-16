@@ -19,9 +19,9 @@ class MainActivity : AppCompatActivity() {
         storyPathView.setMaxColumn(3)
         for (i in 0..17) {
             var bean: StoryBean = if (i > 10) {
-                StoryBean("http://onz34txkn.bkt.clouddn.com/1804091636236975.png", 0, 0, 0, null)
+                StoryBean("http://onz34txkn.bkt.clouddn.com/1804091636236975.png", 0, 0, 0)
             } else {
-                StoryBean("http://onz34txkn.bkt.clouddn.com/1804091636236975.png", 1, 0, 0, null)
+                StoryBean("http://onz34txkn.bkt.clouddn.com/1804091636236975.png", 1, 0, 0)
             }
             list.add(bean)
         }
