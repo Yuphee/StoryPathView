@@ -10,6 +10,7 @@ import java.lang.ref.WeakReference
  * @date 2018/5/15.
  */
 data class StoryBean(val cover: String,
+                     val title: String,
                      val lockStatus: Int,
                      var x: Int,
                      var y: Int)

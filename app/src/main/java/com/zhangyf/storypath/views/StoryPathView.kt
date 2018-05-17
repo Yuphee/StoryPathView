@@ -7,6 +7,7 @@ import android.media.ThumbnailUtils
 import android.support.v4.util.LruCache
 import android.text.TextPaint
 import android.util.AttributeSet
+import android.util.Log.d
 import android.view.MotionEvent
 import android.view.View
 import com.bumptech.glide.Glide
@@ -15,7 +16,8 @@ import com.bumptech.glide.request.transition.Transition
 import com.zhangyf.storypath.App
 import com.zhangyf.storypath.R
 import com.zhangyf.storypath.bean.StoryBean
-import java.lang.ref.WeakReference
+import com.zhangyf.storypath.dip2px
+import org.jetbrains.anko.dip
 
 
 /**
@@ -28,13 +30,14 @@ class StoryPathView : View {
 
     val MAX_COLUMN_DEFAULT = 3
     val RADIUS_DEFAULT = App.screenWidth * 0.09f
-    val OFFSET_X_DEFAULT = App.screenWidth * 0.15f
+    val OFFSET_X_DEFAULT = App.screenWidth * 0.25f
     val OFFSET_Y_DEFAULT = (App.screenWidth * 0.15f)
     val LINE_STROKE_WIDTH_DEFAULT = 30f
     val CORNER_STROKE_WIDTH_DEFAULT = 8f
-    val LINE_STROKE_COLOR_DEFAULT = Color.GRAY
+    val LINE_STROKE_COLOR_DEFAULT = R.color.colorPath
     val BORDER_COLOR_DEFAULT = R.color.colorBoder
     val COVER_COLOR_DEFAULT = R.color.colorCover
+    val TITLE_TEXT_COLOR_DEFAULT = R.color.colorTitle
     val LOCK_DRAWABLE_DEFAULT = R.drawable.lock_icon_46
     var viewWidth: Int = 0
     var viewHeight: Int = 0
@@ -52,21 +55,42 @@ class StoryPathView : View {
     var downPos: Int = 0
     var upPos: Int = 0
     var dataList: MutableList<StoryBean> = mutableListOf()
-
-    var mScale: Float = 0.toFloat() //图片的缩放比例
+    //图片的缩放比例
+    var mScale: Float = 0.toFloat()
     var MAX_COLUMN_COUNT = MAX_COLUMN_DEFAULT
     var CIRCLE_RADIUS = RADIUS_DEFAULT
+    //左右边距和
     var OFFSET_X = OFFSET_X_DEFAULT
+    //上下边距和
     var OFFSET_Y = OFFSET_Y_DEFAULT
+    //默认每个PoiontY轴间距，可以自己写成不等间距
     var DELTA_Y = (CIRCLE_RADIUS * 2.4).toFloat()
+    //Path路径宽
     var LINE_STROKE_WIDTH = LINE_STROKE_WIDTH_DEFAULT
+    //边框线宽
     var CORNER_STROKE_WIDTH = CORNER_STROKE_WIDTH_DEFAULT
+    //Path路径颜色
     var LINE_STROKE_COLOR = LINE_STROKE_COLOR_DEFAULT
+    //边框颜色
     var BORDER_COLOR = BORDER_COLOR_DEFAULT
+    //上锁遮罩颜色
     var COVER_COLOR = COVER_COLOR_DEFAULT
+    //上锁图标
     var LOCK_DRAWABLE = LOCK_DRAWABLE_DEFAULT
+    //标题距离Point Y轴偏移
+    var TEXT_OFFSET_Y = DELTA_Y * 0.75
+    //标题距离Point X轴偏移
+    var TEXT_OFFSET_X = 0
+    //标题字体大小dp
+    var TITLE_TEXT_SIZE = 14
+    //标题字体颜色
+    var TITLE_TEXT_COLOR = TITLE_TEXT_COLOR_DEFAULT
+    //拐角处是否直线连接
+    var IS_CORNER_DIRECT = true
+    //拐角处Point额外间距倍数
+    var extraYRatio = 0.5f
 
-    var listener:((Boolean) -> Unit)? = null
+    var listener: ((Boolean, Int) -> Unit)? = null
 
     private var mMemoryCache: LruCache<String, Bitmap>? = null
 
@@ -114,7 +138,11 @@ class StoryPathView : View {
         super.onMeasure(widthMeasureSpec, widthMeasureSpec)
         measureWidth = View.MeasureSpec.getSize(widthMeasureSpec)
         viewWidth = measureWidth
-        measureHeight = (OFFSET_Y + DELTA_Y * (dataList.size - 1) + CIRCLE_RADIUS * 2).toInt()
+        if (dataList.size > 0) {
+            measureHeight = (OFFSET_Y / 2 + dataList[dataList.size - 1].y + CIRCLE_RADIUS + TEXT_OFFSET_Y + dip(TITLE_TEXT_SIZE) - CIRCLE_RADIUS).toInt()
+        } else {
+            measureHeight = OFFSET_Y.toInt()
+        }
         viewHeight = measureHeight
         setMeasuredDimension(viewWidth, viewHeight)
     }
@@ -142,7 +170,11 @@ class StoryPathView : View {
                 pointF.x = (MAX_COLUMN_COUNT - i % MAX_COLUMN_COUNT)
             }
 
-            pointF.y = ((OFFSET_Y / 2 + CIRCLE_RADIUS + DELTA_Y * i).toInt())
+//            pointF.y = ((OFFSET_Y / 2 + CIRCLE_RADIUS + DELTA_Y * i).toInt())
+
+            var dd = i / MAX_COLUMN_COUNT
+
+            pointF.y = ((OFFSET_Y / 2 + CIRCLE_RADIUS + DELTA_Y * i + dd * extraYRatio * DELTA_Y).toInt())
 
             dataList[i] = pointF
         }
@@ -179,34 +211,59 @@ class StoryPathView : View {
                     mPath!!.moveTo(x, y)
                 }
 
+                // 拐角处转弯处理
+                if(!IS_CORNER_DIRECT) {
+                    var dx = (App.screenWidth - OFFSET_X) / (MAX_COLUMN_COUNT - 1)
+
+                    var mm = i / MAX_COLUMN_COUNT
+
+                    // 转折点非直线连接
+                    if (i > 0 && i % MAX_COLUMN_COUNT == 0) {
+                        if (i > 0 && mm % 2 == 0) {
+                            mPath!!.lineTo((x - (App.screenWidth - OFFSET_X) / MAX_COLUMN_COUNT * (extraYRatio + 1) / 2), (y - (extraYRatio + 1) * DELTA_Y / 2))
+                        } else {
+                            mPath!!.lineTo((x + (App.screenWidth - OFFSET_X) / MAX_COLUMN_COUNT * (extraYRatio + 1) / 2), (y - (extraYRatio + 1) * DELTA_Y / 2))
+                        }
+                    }
+                }
+
                 // 连接各点
                 mPath!!.lineTo(x, y)
+
+                val textPaint = Paint()
+                textPaint.isAntiAlias = true
+                textPaint.style = Paint.Style.FILL
+                textPaint.textAlign = Paint.Align.CENTER
+                textPaint.textSize = dip(TITLE_TEXT_SIZE).toFloat()
+                var text = dataList[i].title
+                var length = textPaint.textSize * text.length
+                textPaint.color = resources.getColor(TITLE_TEXT_COLOR)
+                canvas.drawText(text, x + TEXT_OFFSET_X, (y + TEXT_OFFSET_Y).toFloat(), textPaint)
             }
 
             // 将Path绘制到我们自定的Canvas上
             canvas.drawPath(mPath!!, linePaint!!)
 
             for (i in dataList.indices) {
-                var index = i
                 val bitmapPaint = Paint()
                 bitmapPaint.isAntiAlias = true
                 bitmapPaint.isFilterBitmap = true
                 if (getBitmapFromMemCache(dataList[i].cover) == null) {
                     Glide.with(mContext!!)
                             .asBitmap()
-                            .load(dataList[index].cover)
+                            .load(dataList[i].cover)
                             .into(object : SimpleTarget<Bitmap>() {
                                 override fun onResourceReady(bitmap: Bitmap, transition: Transition<in Bitmap>?) {
-                                    addBitmapToMemoryCache(dataList[i].cover,bitmap)
+                                    addBitmapToMemoryCache(dataList[i].cover, bitmap)
                                     invalidate()
                                 }
                             })
                 }
 
                 // 计算x坐标
-                val x = OFFSET_X / 2 + ((viewWidth - OFFSET_X) / (MAX_COLUMN_COUNT) * dataList[index].x) - (viewWidth - OFFSET_X) / (MAX_COLUMN_COUNT) / 2
+                val x = OFFSET_X / 2 + ((viewWidth - OFFSET_X) / (MAX_COLUMN_COUNT) * dataList[i].x) - (viewWidth - OFFSET_X) / (MAX_COLUMN_COUNT) / 2
                 // 计算y坐标
-                val y = dataList[index].y.toFloat()
+                val y = dataList[i].y.toFloat()
 
                 val cache = getBitmapFromMemCache(dataList[i].cover)
                 if (cache != null) {
@@ -240,7 +297,7 @@ class StoryPathView : View {
                 mBorderPaint.strokeWidth = CORNER_STROKE_WIDTH
                 canvas.drawCircle(x, y, CIRCLE_RADIUS, mBorderPaint)
 
-                if (dataList[index].lockStatus == 0) {
+                if (dataList[i].lockStatus == 0) {
                     val coverPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG)
                     mBorderPaint.isAntiAlias = true
                     coverPaint.style = Paint.Style.FILL
@@ -284,9 +341,9 @@ class StoryPathView : View {
                 upPos = whichCircle(upX, upY)
                 if (downPos != -1 && downPos == upPos) {
                     if (dataList[downPos].lockStatus == 0) {
-                        listener?.invoke(true)
+                        listener?.invoke(true, downPos)
                     } else {
-                        listener?.invoke(false)
+                        listener?.invoke(false, downPos)
                     }
                 }
             }
@@ -406,9 +463,39 @@ class StoryPathView : View {
     }
 
     /**
+     * 设置标题字体大小
+     * 单位dp
+     */
+    open fun setTitleTextSize(size: Int) {
+        TITLE_TEXT_SIZE = size
+    }
+
+    /**
+     * 设置标题字体颜色
+     */
+    open fun setTitleTextColor(color: Int) {
+        TITLE_TEXT_COLOR = color
+    }
+
+    /**
+     * 设置拐角额外间距倍数
+     * CORNER = (1+ratio)*DELTA_Y
+     */
+    open fun setCornerExtraRatio(ratio: Float) {
+        extraYRatio = ratio
+    }
+
+    /**
+     * 设置拐角是否直线连接
+     */
+    open fun setCornerDirect(direct: Boolean) {
+        IS_CORNER_DIRECT = direct
+    }
+
+    /**
      * 设置点击point监听
      */
-    open fun setOnPointClickListener(listener: (Boolean)->Unit) {
+    open fun setOnPointClickListener(listener: (Boolean, Int) -> Unit) {
         this.listener = listener
     }
 

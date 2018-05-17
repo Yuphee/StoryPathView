@@ -6,4 +6,6 @@
 
     <color name="colorBoder">#ffffff</color>
     <color name="colorCover">#80ffffff</color>
+    <color name="colorPath">#a4603b</color>
+    <color name="colorTitle">#000000</color>
 </resources>
