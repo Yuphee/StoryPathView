@@ -20,9 +20,9 @@ class MainActivity : AppCompatActivity() {
         storyPathView.setCornerDirect(false)
         for (i in 0..17) {
             var bean: StoryBean = if (i > 10) {
-                StoryBean("http://onz34txkn.bkt.clouddn.com/1804091636236975.png", "Unit$i", 0, 0, 0)
+                StoryBean("http://onz34txkn.bkt.clouddn.com/1804091636236975.png", "Unit$i", 0, 0, 0, null)
             } else {
-                StoryBean("http://onz34txkn.bkt.clouddn.com/1804091636236975.png", "Unit$i", 1, 0, 0)
+                StoryBean("http://onz34txkn.bkt.clouddn.com/1804091636236975.png", "Unit$i", 1, 0, 0, null)
             }
             list.add(bean)
         }
@@ -33,7 +33,8 @@ class MainActivity : AppCompatActivity() {
                 toast("跳转其它页面")
             }
         }
-        storyPathView.setData(list!!)
+        storyPathView.setPathData(list)
         scroll_path_view.addView(storyPathView)
     }
+
 }

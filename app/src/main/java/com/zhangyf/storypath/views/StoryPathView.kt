@@ -7,16 +7,13 @@ import android.media.ThumbnailUtils
 import android.support.v4.util.LruCache
 import android.text.TextPaint
 import android.util.AttributeSet
-import android.util.Log.d
 import android.view.MotionEvent
 import android.view.View
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.SimpleTarget
 import com.bumptech.glide.request.transition.Transition
-import com.zhangyf.storypath.App
 import com.zhangyf.storypath.R
 import com.zhangyf.storypath.bean.StoryBean
-import com.zhangyf.storypath.dip2px
 import org.jetbrains.anko.dip
 
 
@@ -29,9 +26,6 @@ import org.jetbrains.anko.dip
 class StoryPathView : View {
 
     val MAX_COLUMN_DEFAULT = 3
-    val RADIUS_DEFAULT = App.screenWidth * 0.09f
-    val OFFSET_X_DEFAULT = App.screenWidth * 0.25f
-    val OFFSET_Y_DEFAULT = (App.screenWidth * 0.15f)
     val LINE_STROKE_WIDTH_DEFAULT = 30f
     val CORNER_STROKE_WIDTH_DEFAULT = 8f
     val LINE_STROKE_COLOR_DEFAULT = R.color.colorPath
@@ -44,7 +38,7 @@ class StoryPathView : View {
     var linePaint: Paint? = null
     var mContext: Context? = null
     var mPath: Path? = null
-    var mTextPaint: TextPaint? = null
+    var textPaint: TextPaint? = null
     var measureWidth: Int = 0
     var measureHeight: Int = 0
 
@@ -58,13 +52,13 @@ class StoryPathView : View {
     //图片的缩放比例
     var mScale: Float = 0.toFloat()
     var MAX_COLUMN_COUNT = MAX_COLUMN_DEFAULT
-    var CIRCLE_RADIUS = RADIUS_DEFAULT
+    var CIRCLE_RADIUS = 0f
     //左右边距和
-    var OFFSET_X = OFFSET_X_DEFAULT
+    var OFFSET_X = 0f
     //上下边距和
-    var OFFSET_Y = OFFSET_Y_DEFAULT
+    var OFFSET_Y = 0f
     //默认每个PoiontY轴间距，可以自己写成不等间距
-    var DELTA_Y = (CIRCLE_RADIUS * 2.4).toFloat()
+    var DELTA_Y  = 0f
     //Path路径宽
     var LINE_STROKE_WIDTH = LINE_STROKE_WIDTH_DEFAULT
     //边框线宽
@@ -77,18 +71,19 @@ class StoryPathView : View {
     var COVER_COLOR = COVER_COLOR_DEFAULT
     //上锁图标
     var LOCK_DRAWABLE = LOCK_DRAWABLE_DEFAULT
-    //标题距离Point Y轴偏移
-    var TEXT_OFFSET_Y = DELTA_Y * 0.75
-    //标题距离Point X轴偏移
-    var TEXT_OFFSET_X = 0
-    //标题字体大小dp
-    var TITLE_TEXT_SIZE = 14
     //标题字体颜色
     var TITLE_TEXT_COLOR = TITLE_TEXT_COLOR_DEFAULT
+    //标题距离Point Y轴偏移
+    var TEXT_OFFSET_Y = 0f
+    //标题距离Point X轴偏移
+    var TEXT_OFFSET_X = 0f
+    //标题字体大小dp
+    var TITLE_TEXT_SIZE = 14
     //拐角处是否直线连接
     var IS_CORNER_DIRECT = true
     //拐角处Point额外间距倍数
     var extraYRatio = 0.5f
+    var isPathData = true
 
     var listener: ((Boolean, Int) -> Unit)? = null
 
@@ -120,8 +115,12 @@ class StoryPathView : View {
 
         mPath = Path()
 
-        mTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG or Paint.LINEAR_TEXT_FLAG)
-        mTextPaint!!.color = Color.WHITE
+        textPaint = TextPaint()
+        textPaint!!.isAntiAlias = true
+        textPaint!!.style = Paint.Style.FILL
+        textPaint!!.textAlign = Paint.Align.CENTER
+        textPaint!!.textSize = dip(TITLE_TEXT_SIZE).toFloat()
+        textPaint!!.color = resources.getColor(TITLE_TEXT_COLOR)
 
         val maxMemory = (Runtime.getRuntime().maxMemory() / 1024).toInt()
 
@@ -138,12 +137,25 @@ class StoryPathView : View {
         super.onMeasure(widthMeasureSpec, widthMeasureSpec)
         measureWidth = View.MeasureSpec.getSize(widthMeasureSpec)
         viewWidth = measureWidth
+
+        //根据宽度初始化
+        CIRCLE_RADIUS = viewWidth * 0.09f
+        OFFSET_X = viewWidth * 0.25f
+        OFFSET_Y = viewWidth * 0.15f
+        DELTA_Y = (CIRCLE_RADIUS * 2.4).toFloat()
+        TEXT_OFFSET_Y = (DELTA_Y * 0.75).toFloat()
+
+        if(!isPathData) {
+            initDefaultPath()
+        }
+
         if (dataList.size > 0) {
             measureHeight = (OFFSET_Y / 2 + dataList[dataList.size - 1].y + CIRCLE_RADIUS + TEXT_OFFSET_Y + dip(TITLE_TEXT_SIZE) - CIRCLE_RADIUS).toInt()
         } else {
             measureHeight = OFFSET_Y.toInt()
         }
         viewHeight = measureHeight
+
         setMeasuredDimension(viewWidth, viewHeight)
     }
 
@@ -153,6 +165,7 @@ class StoryPathView : View {
         viewHeight = h
     }
 
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
@@ -160,7 +173,7 @@ class StoryPathView : View {
 
     }
 
-    private fun initData() {
+    private fun initDefaultPath() {
         for (i in dataList.indices) {
             val pointF = dataList[i]
 
@@ -178,16 +191,7 @@ class StoryPathView : View {
 
             dataList[i] = pointF
         }
-    }
-
-    private fun initYData() {
-        for (i in dataList.indices) {
-            val pointF = dataList[i]
-
-            pointF.y = ((OFFSET_Y / 2 + CIRCLE_RADIUS + DELTA_Y * i).toInt())
-
-            dataList[i] = pointF
-        }
+        isPathData = true
     }
 
     private fun drawView(canvas: Canvas) {
@@ -213,16 +217,16 @@ class StoryPathView : View {
 
                 // 拐角处转弯处理
                 if(!IS_CORNER_DIRECT) {
-                    var dx = (App.screenWidth - OFFSET_X) / (MAX_COLUMN_COUNT - 1)
+                    var dx = (viewWidth - OFFSET_X) / (MAX_COLUMN_COUNT - 1)
 
                     var mm = i / MAX_COLUMN_COUNT
 
                     // 转折点非直线连接
                     if (i > 0 && i % MAX_COLUMN_COUNT == 0) {
                         if (i > 0 && mm % 2 == 0) {
-                            mPath!!.lineTo((x - (App.screenWidth - OFFSET_X) / MAX_COLUMN_COUNT * (extraYRatio + 1) / 2), (y - (extraYRatio + 1) * DELTA_Y / 2))
+                            mPath!!.lineTo((x - (viewWidth - OFFSET_X) / MAX_COLUMN_COUNT * (extraYRatio + 1) / 2), (y - (extraYRatio + 1) * DELTA_Y / 2))
                         } else {
-                            mPath!!.lineTo((x + (App.screenWidth - OFFSET_X) / MAX_COLUMN_COUNT * (extraYRatio + 1) / 2), (y - (extraYRatio + 1) * DELTA_Y / 2))
+                            mPath!!.lineTo((x + (viewWidth - OFFSET_X) / MAX_COLUMN_COUNT * (extraYRatio + 1) / 2), (y - (extraYRatio + 1) * DELTA_Y / 2))
                         }
                     }
                 }
@@ -230,14 +234,8 @@ class StoryPathView : View {
                 // 连接各点
                 mPath!!.lineTo(x, y)
 
-                val textPaint = Paint()
-                textPaint.isAntiAlias = true
-                textPaint.style = Paint.Style.FILL
-                textPaint.textAlign = Paint.Align.CENTER
-                textPaint.textSize = dip(TITLE_TEXT_SIZE).toFloat()
                 var text = dataList[i].title
-                var length = textPaint.textSize * text.length
-                textPaint.color = resources.getColor(TITLE_TEXT_COLOR)
+                var length = textPaint!!.textSize * text.length
                 canvas.drawText(text, x + TEXT_OFFSET_X, (y + TEXT_OFFSET_Y).toFloat(), textPaint)
             }
 
@@ -369,28 +367,12 @@ class StoryPathView : View {
     /**
      * 设置数据源设置默认线性排序
      */
-    open fun setData(list: MutableList<StoryBean>) {
+    open fun setPathData(list: MutableList<StoryBean>) {
         dataList = list
-        initData()
+        isPathData = false
         invalidate()
     }
 
-    /**
-     * 设置数据源更改X位置(1..MAX_COLUMN_COUNT)
-     */
-    open fun setDataWithCustomX(list: MutableList<StoryBean>) {
-        dataList = list
-        initYData()
-        invalidate()
-    }
-
-    /**
-     * 设置数据源更改XY位置
-     */
-    open fun setDataWithCustomXY(list: MutableList<StoryBean>) {
-        dataList = list
-        invalidate()
-    }
 
     /**
      * 设置一行的point个数

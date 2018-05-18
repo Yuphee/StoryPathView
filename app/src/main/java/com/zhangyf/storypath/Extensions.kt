@@ -1,15 +1,11 @@
 package com.zhangyf.storypath
 
-import android.arch.lifecycle.Lifecycle
-import android.arch.lifecycle.LifecycleOwner
 import android.content.Context
 import android.support.v4.app.Fragment
 import android.util.DisplayMetrics
-import android.util.Log
 import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
-import com.zhangyf.storypath.App.Companion.context
 
 /**
  * Extensions
@@ -25,7 +21,7 @@ fun Fragment.showToast(content: String): Toast {
 }
 
 fun Context.showToast(content: String): Toast {
-    val toast = Toast.makeText(App.context, content, Toast.LENGTH_SHORT)
+    val toast = Toast.makeText(this, content, Toast.LENGTH_SHORT)
     toast.show()
     return toast
 }
@@ -55,11 +51,6 @@ fun Context.getScreenHeight(): Int {
     return outMetrics.heightPixels
 }
 
-fun Context.logE(tag: String, msg: String) {
-    if (BuildConfig.DEBUG) {
-        Log.e(tag, msg)
-    }
-}
 
 
 

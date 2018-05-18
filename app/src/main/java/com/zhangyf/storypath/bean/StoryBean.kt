@@ -13,5 +13,6 @@ data class StoryBean(val cover: String,
                      val title: String,
                      val lockStatus: Int,
                      var x: Int,
-                     var y: Int)
+                     var y: Int,
+                     val data: Any?)
 
